@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Car Wash Empire – Prototype v0.1</title>
+<style>
+:root{--blue:#1597e5;--deep:#12304a;--yellow:#ffc62e;--green:#35c96b;--bg:#bfe8ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(#aee1ff,#eaf8ff);color:var(--deep);overflow:hidden;touch-action:none}
+#game{height:100vh;max-width:620px;margin:auto;display:flex;flex-direction:column}
+.top{padding:14px 16px 8px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:900;font-size:21px;line-height:.9;color:#fff;text-shadow:0 2px 0 #176aa1,0 4px 8px #77b7d8}
+.cash{background:#fff;border:3px solid #1b79b5;border-radius:18px;padding:8px 13px;font-weight:900;box-shadow:0 5px 0 #1b79b5}
+.station{margin:6px 12px 0;flex:1;min-height:0;background:linear-gradient(#e7f8ff 0 22%,#78c96d 22% 42%,#666 42% 100%);border:4px solid #176aa1;border-radius:28px;position:relative;overflow:hidden;box-shadow:0 9px 0 #176aa1}
+.sign{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#167ec0;color:#fff;font-weight:1000;font-size:24px;padding:8px 22px;border-radius:14px;border:4px solid #0d5d91;white-space:nowrap}
+.cloud{position:absolute;width:110px;height:38px;background:#fff;border-radius:30px;opacity:.8;top:22px}.c1{left:8px}.c2{right:10px;top:50px}
+.lane{position:absolute;left:7%;right:7%;bottom:12%;height:44%;background:#4d5158;border-radius:20px;border:5px solid #35383d}
+.yellow{position:absolute;left:0;right:0;top:7%;height:10%;background:repeating-linear-gradient(90deg,#ffd32e 0 32px,transparent 32px 56px)}
+.car{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(0deg);width:min(76%,360px);filter:drop-shadow(0 12px 5px #2228);transition:.25s}
+.carbody{fill:#168ee0;stroke:#075c96;stroke-width:5}.glass{fill:#1c3545;stroke:#0d2534;stroke-width:4}.wheel{fill:#20252a;stroke:#0d1114;stroke-width:4}.rim{fill:#d8e3e8;stroke:#87969e;stroke-width:3}
+.dirt{opacity:1;transition:opacity .2s}.dirt circle,.dirt path{fill:#6d472e}.foam{opacity:0;transition:opacity .2s}.foam circle{fill:#fff;stroke:#d9f4ff;stroke-width:3}
+.progressWrap{position:absolute;left:10%;right:10%;bottom:5%;height:22px;background:#24313b;border-radius:14px;border:3px solid #fff;overflow:hidden}
+#progress{height:100%;width:0;background:linear-gradient(90deg,#35c96b,#caff57);transition:width .08s}
+.stage{position:absolute;left:10px;top:10px;background:#fff;border:3px solid #176aa1;border-radius:13px;padding:7px 10px;font-weight:900}
+.controls{padding:12px 14px 18px}
+.instruction{text-align:center;font-weight:800;margin:2px 0 8px}
+.btnrow{display:flex;gap:9px}
+button{border:0;font:inherit;font-weight:1000;cursor:pointer}
+.action{flex:1;padding:15px 8px;border-radius:18px;background:var(--blue);color:#fff;border:4px solid #0d679d;box-shadow:0 6px 0 #0d679d;font-size:17px}
+.action:active{transform:translateY(4px);box-shadow:0 2px 0 #0d679d}
+.action.secondary{background:#ffc62e;color:#513700;border-color:#d79c00;box-shadow:0 6px 0 #d79c00}
+.upgrade{margin-top:10px;background:#fff;border:3px solid #176aa1;border-radius:18px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 0 #176aa1}
+.small{font-size:12px;opacity:.7}.lvl{font-weight:1000}
+.modal{position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:25px}
+.card{background:#fff;border:5px solid #176aa1;border-radius:28px;padding:25px;text-align:center;max-width:360px;box-shadow:0 12px 0 #0d527c}
+.card h1{margin:0 0 8px;color:#0e78b7}.reward{font-size:34px;font-weight:1000;color:#1f9b4c;margin:10px}
+.stars{font-size:30px;letter-spacing:5px}
+</style>
+</head>
+<body>
+<div id="game">
+  <div class="top">
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span></div>
+    <div class="cash">💵 $<span id="cash">100</span></div>
+  </div>
+
+  <div class="station" id="station">
+    <div class="cloud c1"></div><div class="cloud c2"></div>
+    <div class="sign">🚗 CAR WASH</div>
+    <div class="stage" id="stage">1 / 4 · WASH</div>
+    <div class="lane"><div class="yellow"></div>
+      <svg class="car" id="car" viewBox="0 0 500 260" aria-label="blue compact car">
+        <ellipse cx="250" cy="220" rx="175" ry="17" fill="#111" opacity=".25"/>
+        <path class="carbody" d="M82 174 L103 116 Q112 92 148 86 L187 57 Q201 46 225 46 L318 46 Q345 47 360 62 L394 91 Q419 99 426 126 L437 174 Q442 193 421 199 L75 199 Q57 194 64 178Z"/>
+        <path class="glass" d="M169 89 L199 62 Q207 56 224 56 L258 56 L258 91Z"/>
+        <path class="glass" d="M270 56 L315 57 Q330 58 342 69 L366 91 L270 91Z"/>
+        <path class="carbody" d="M104 121 Q126 103 153 101 L392 101 Q409 105 417 121 L422 137 L96 137Z"/>
+        <circle class="wheel" cx="145" cy="196" r="38"/><circle class="rim" cx="145" cy="196" r="18"/>
+        <circle class="wheel" cx="367" cy="196" r="38"/><circle class="rim" cx="367" cy="196" r="18"/>
+        <path d="M79 146 L109 145" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+        <path d="M408 146 L426 148" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+        <g class="dirt" id="dirt">
+          <circle cx="120" cy="126" r="15"/><circle cx="180" cy="151" r="11"/><circle cx="240" cy="127" r="18"/>
+          <circle cx="300" cy="155" r="12"/><circle cx="354" cy="128" r="17"/><circle cx="390" cy="162" r="10"/>
+          <path d="M135 174 Q170 150 200 174 T265 174" stroke="#6d472e" stroke-width="12" fill="none"/>
+          <path d="M285 120 Q320 106 348 125" stroke="#6d472e" stroke-width="10" fill="none"/>
+        </g>
+        <g class="foam" id="foam">
+          <circle cx="120" cy="120" r="18"/><circle cx="155" cy="145" r="22"/><circle cx="205" cy="125" r="18"/>
+          <circle cx="250" cy="151" r="25"/><circle cx="305" cy="125" r="20"/><circle cx="350" cy="148" r="24"/><circle cx="390" cy="127" r="17"/>
+        </g>
+      </svg>
+    </div>
+    <div class="progressWrap"><div id="progress"></div></div>
+  </div>
+
+  <div class="controls">
+    <div class="instruction" id="instruction">Svep över bilen för att tvätta bort smutsen!</div>
+    <div class="btnrow">
+      <button class="action" id="washBtn">🚿 WASH</button>
+      <button class="action secondary" id="boostBtn">⚡ BOOST</button>
+    </div>
+    <div class="upgrade">
+      <div><div class="lvl">🧽 Wash Speed <span id="level">Lv. 1</span></div><div class="small">Snabbare tvätt = fler kunder</div></div>
+      <button class="action" style="flex:0 0 auto;padding:10px 15px;font-size:14px" id="upgradeBtn">⬆️ $<span id="cost">100</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="card">
+    <div class="stars">✨ ⭐ ✨</div>
+    <h1>PERFECT WASH!</h1>
+    <div class="reward">+$<span id="reward">100</span></div>
+    <p>Din första bil är skinande ren.</p>
+    <button class="action" id="continueBtn">🚗 NÄSTA BIL</button>
+  </div>
+</div>
+
+<script>
+let cash=100, level=1, progress=0, stage=1, reward=100, washing=false;
+const $=id=>document.getElementById(id);
+function render(){
+  $("cash").textContent=Math.floor(cash);
+  $("level").textContent="Lv. "+level;
+  $("cost").textContent=Math.floor(100*Math.pow(1.65,level-1));
+  $("progress").style.width=progress+"%";
+  $("dirt").style.opacity=stage===4?0:Math.max(.15,1-progress/100);
+  $("foam").style.opacity=stage===2||stage===3?.9:0;
+  const labels=[
+    ["1 / 4 · WASH","Svep över bilen för att tvätta bort smutsen!"],
+    ["2 / 4 · FOAM","Bra! Lägg på skum — några sekunder räcker."],
+    ["3 / 4 · RINSE","Skölj bort skummet och gör bilen ren."],
+    ["4 / 4 · SHINE","Sista steget! Ge bilen lite shine."]
+  ];
+  $("stage").textContent=labels[stage-1][0]; $("instruction").textContent=labels[stage-1][1];
+}
+function addProgress(amount){
+  progress=Math.min(100,progress+amount*(1+level*.12));
+  if(progress>=100){ if(stage<4){stage++;progress=0;} else complete(); }
+  render();
+}
+function complete(){
+  reward=Math.floor(100*(1+(level-1)*.25));
+  cash+=reward;
+  $("reward").textContent=reward;
+  $("modal").style.display="flex";
+  washing=false;
+}
+function nextCar(){
+  $("modal").style.display="none"; stage=1;progress=0;render();
+}
+$("continueBtn").onclick=nextCar;
+$("washBtn").onpointerdown=e=>{washing=true;addProgress(7)};
+window.onpointerup=()=>washing=false;
+$("station").addEventListener("pointermove",e=>{if(washing)addProgress(2.5)});
+$("boostBtn").onclick=()=>{addProgress(25);};
+$("upgradeBtn").onclick=()=>{
+  const cost=100*Math.pow(1.65,level-1);
+  if(cash>=cost){cash-=cost;level++;render();}
+};
+render();
+</script>
+</body>
+</html>
