@@ -57,7 +57,7 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 </style>
 
 <style>
-/* Car Wash Empire v0.5.1 */
+/* Car Wash Empire v0.5.2 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -85,7 +85,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.5.1</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.5.2</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -186,7 +186,10 @@ function createDirt(){
   });
 }
 function setTool(tool){
-  if(!toolAllowed(tool)){ toast(tool==="sponge"?"🚿 Använd högtrycken först!":"🧽 Använd svampen först!"); return; }
+  if((stage===1 && tool!=="wash")||(stage===2 && tool!=="sponge")||(stage===3 && tool!=="shine")){
+    toast(stage===1?"🚿 HÖGTRYCK FÖRST!":stage===2?"🧽 DU MÅSTE ANVÄNDA SVAMPEN!":"✨ ANVÄND POLISH!");
+    return;
+  }
   selectedTool=tool;
   const names={wash:"🚿 HÖGTRYCK",sponge:"🧽 SVAMP",shine:"✨ POLISH"};
   $("toolLabel").textContent=names[tool];
@@ -203,9 +206,9 @@ function cleanAt(x,y){
 
     // Only the correct tool can remove each dirt layer.
     const allowed =
-      (selectedTool==="wash" && i<=6) ||
-      (selectedTool==="sponge" && i>=5) ||
-      (selectedTool==="shine" && i>=8);
+      (stage===1 && selectedTool==="wash" && i<=6) ||
+      (stage===2 && selectedTool==="sponge" && i>=5) ||
+      (stage===3 && selectedTool==="shine" && i>=8);
 
     if(allowed && dist < (selectedTool==="wash"?42:selectedTool==="sponge"?30:22)){
       s.classList.add("cleaning");
@@ -262,19 +265,40 @@ function render(){
   $("stage").textContent=labels[stage-1][0]; $("instruction").textContent=labels[stage-1][1];
 }
 function addProgress(n){
+  // Each stage has its own 0–100% progress bar.
+  // Once 100% is reached, that tool stops working until the next tool is unlocked.
+  if(stage===1 && selectedTool!=="wash") return;
+  if(stage===2 && selectedTool!=="sponge") return;
+  if(stage===3 && selectedTool!=="shine") return;
+
+  progress=Math.min(100, progress+n*(1+level*.12));
+  $("progress").style.width=progress+"%";
   $("car").classList.add("shake");
   setTimeout(()=>$("car").classList.remove("shake"),220);
 
-  // v0.5.1: each tool has a strict stage.
-  // High pressure must finish first, then sponge, then polish.
-  if(stage===1 && selectedTool==="wash" && dirtRemaining()<=3){
-    stage=2; progress=0; completedStage=2; selectedTool="sponge";
-    toast("🧽 SVAMP UPPLÅST!"); updateTools();
-  } else if(stage===2 && selectedTool==="sponge" && dirtRemaining()<=1){
-    stage=3; progress=0; completedStage=3; selectedTool="shine";
-    toast("✨ POLISH UPPLÅST!"); updateTools();
-  } else if(stage===3 && selectedTool==="shine" && dirtRemaining()===0){
-    stage=4; progress=100; complete(); return;
+  if(progress>=100){
+    progress=100;
+    render();
+
+    if(stage===1){
+      // HARD STOP: high pressure is finished.
+      completedStage=2;
+      stage=2;
+      selectedTool="sponge";
+      toast("🛑 HÖGTRYCK KLART! 🧽 TA SVAMPEN!");
+      updateTools();
+    } else if(stage===2){
+      // HARD STOP: sponge is finished.
+      completedStage=3;
+      stage=3;
+      selectedTool="shine";
+      toast("🛑 SVAMP KLAR! ✨ TA POLISH!");
+      updateTools();
+    } else if(stage===3){
+      // Final stage complete.
+      complete();
+    }
+    return;
   }
   render();
 }
