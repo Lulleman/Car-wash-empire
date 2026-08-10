@@ -38,7 +38,7 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 .stars{font-size:30px;letter-spacing:5px}
 </style>
 <style>
-/* Car Wash Empire v0.3 */
+/* Car Wash Empire v0.3.1 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -66,7 +66,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.3</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.3.1</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -101,7 +101,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
   </div>
 
   <div class="controls">
-    <div class="instruction" id="instruction">Svep över bilen för att tvätta bort smutsen!</div>
+    <div class="instruction" id="instruction">DRA FINGRET DIREKT ÖVER BILEN!</div>
     <div class="btnrow">
       <button class="action" id="washBtn">🚿 WASH</button>
       <button class="action secondary" id="boostBtn">⚡ BOOST</button>
@@ -156,7 +156,7 @@ function render(){
   $("dirt").style.opacity=stage===4?0:Math.max(.15,1-progress/100);
   $("foam").style.opacity=stage===2||stage===3?.9:0;
   const labels=[
-    ["1 / 4 · WASH","Svep över bilen för att tvätta bort smutsen!"],
+    ["1 / 4 · WASH","DRA FINGRET DIREKT ÖVER BILEN!"],
     ["2 / 4 · FOAM","Bra! Lägg på skum — några sekunder räcker."],
     ["3 / 4 · RINSE","Skölj bort skummet och gör bilen ren."],
     ["4 / 4 · SHINE","Sista steget! Ge bilen lite shine."]
@@ -194,7 +194,24 @@ $("washBtn").onpointerdown=e=>{
   addProgress(7);
 };
 window.onpointerup=()=>washing=false;
-$("station").addEventListener("pointermove",e=>{if(washing)addProgress(2.5)});
+function touchPoint(e){
+  const r=$("station").getBoundingClientRect();
+  return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+$("station").addEventListener("pointerdown",e=>{
+  if(e.target.closest("button")) return;
+  washing=true;
+  try{$("station").setPointerCapture(e.pointerId)}catch(_){}
+  const p=touchPoint(e); fx(p.x,p.y,stage===2); addProgress(6); lastTouch=Date.now();
+});
+$("station").addEventListener("pointermove",e=>{
+  if(!washing) return;
+  e.preventDefault();
+  const p=touchPoint(e); fx(p.x,p.y,stage===2);
+  if(Date.now()-lastTouch>55){ addProgress(stage===4?2.4:3.2); lastTouch=Date.now(); setCombo(); }
+});
+$("station").addEventListener("pointerup",e=>{washing=false;try{$("station").releasePointerCapture(e.pointerId)}catch(_){}});
+$("station").addEventListener("pointercancel",()=>washing=false);
 $("boostBtn").onclick=()=>{addProgress(25);};
 $("upgradeBtn").onclick=()=>{
   const cost=100*Math.pow(1.65,level-1);
