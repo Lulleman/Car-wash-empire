@@ -57,7 +57,7 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 </style>
 
 <style>
-/* Car Wash Empire v0.5 */
+/* Car Wash Empire v0.5.1 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -85,7 +85,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.5</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.5.1</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -195,11 +195,21 @@ function setTool(tool){
 function cleanAt(x,y){
   const r=$("cleanLayer").getBoundingClientRect();
   const lx=(x-r.left)/r.width*100, ly=(y-r.top)/r.height*100;
+
   document.querySelectorAll(".dirtSpot:not(.cleaning)").forEach(s=>{
     const sx=parseFloat(s.style.left), sy=parseFloat(s.style.top);
     const dist=Math.hypot((sx-lx)*r.width/100,(sy-ly)*r.height/100);
-    if(dist < (selectedTool==="wash"?38:selectedTool==="sponge"?28:20)){
+    const i=Number(s.dataset.i);
+
+    // Only the correct tool can remove each dirt layer.
+    const allowed =
+      (selectedTool==="wash" && i<=6) ||
+      (selectedTool==="sponge" && i>=5) ||
+      (selectedTool==="shine" && i>=8);
+
+    if(allowed && dist < (selectedTool==="wash"?42:selectedTool==="sponge"?30:22)){
       s.classList.add("cleaning");
+      s.style.opacity=selectedTool==="shine"?"0":".15";
     }
   });
 }
@@ -251,15 +261,20 @@ function render(){
   ];
   $("stage").textContent=labels[stage-1][0]; $("instruction").textContent=labels[stage-1][1];
 }
-function addProgress(amount){
-  progress=Math.min(100,progress+amount*(1+level*.12));
+function addProgress(n){
   $("car").classList.add("shake");
   setTimeout(()=>$("car").classList.remove("shake"),220);
-  const fx=document.createElement("div"); fx.className="waterFX"; $("station").appendChild(fx);
-  setTimeout(()=>fx.remove(),500);
-  if(progress>=100){
-    if(stage<4){stage++;progress=0;}
-    else complete();
+
+  // v0.5.1: each tool has a strict stage.
+  // High pressure must finish first, then sponge, then polish.
+  if(stage===1 && selectedTool==="wash" && dirtRemaining()<=3){
+    stage=2; progress=0; completedStage=2; selectedTool="sponge";
+    toast("🧽 SVAMP UPPLÅST!"); updateTools();
+  } else if(stage===2 && selectedTool==="sponge" && dirtRemaining()<=1){
+    stage=3; progress=0; completedStage=3; selectedTool="shine";
+    toast("✨ POLISH UPPLÅST!"); updateTools();
+  } else if(stage===3 && selectedTool==="shine" && dirtRemaining()===0){
+    stage=4; progress=100; complete(); return;
   }
   render();
 }
