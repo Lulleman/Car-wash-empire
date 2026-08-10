@@ -37,11 +37,24 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 .card h1{margin:0 0 8px;color:#0e78b7}.reward{font-size:34px;font-weight:1000;color:#1f9b4c;margin:10px}
 .stars{font-size:30px;letter-spacing:5px}
 </style>
+<style>
+/* v0.2 polish */
+body{background:linear-gradient(#a9e0ff,#eefaff)}
+.station{box-shadow:0 9px 0 #176aa1}
+.car{filter:drop-shadow(0 13px 6px #1118);transition:transform .2s}
+.car.shake{animation:shake .22s linear 2}
+@keyframes shake{25%{transform:translate(-48%,-50%) rotate(-1deg)}75%{transform:translate(-52%,-50%) rotate(1deg)}}
+.waterFX{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:7}
+.waterFX:before,.waterFX:after{content:"💦";position:absolute;font-size:28px;animation:splash .45s ease-out}
+.waterFX:before{left:28%;top:42%}.waterFX:after{right:28%;top:48%}
+@keyframes splash{0%{opacity:0;transform:scale(.5)}20%{opacity:1}100%{opacity:0;transform:translateY(-35px) scale(1.25)}}
+</style>
+
 </head>
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.2</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -99,8 +112,9 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 </div>
 
 <script>
-let cash=100, level=1, progress=0, stage=1, reward=100, washing=false;
+let cash=Number(localStorage.cweCash||100), level=Number(localStorage.cweLevel||1), progress=0, stage=1, reward=100, washing=false;
 const $=id=>document.getElementById(id);
+function save(){localStorage.cweCash=Math.floor(cash);localStorage.cweLevel=level;}
 function render(){
   $("cash").textContent=Math.floor(cash);
   $("level").textContent="Lv. "+level;
@@ -118,12 +132,20 @@ function render(){
 }
 function addProgress(amount){
   progress=Math.min(100,progress+amount*(1+level*.12));
-  if(progress>=100){ if(stage<4){stage++;progress=0;} else complete(); }
+  $("car").classList.add("shake");
+  setTimeout(()=>$("car").classList.remove("shake"),220);
+  const fx=document.createElement("div"); fx.className="waterFX"; $("station").appendChild(fx);
+  setTimeout(()=>fx.remove(),500);
+  if(progress>=100){
+    if(stage<4){stage++;progress=0;}
+    else complete();
+  }
   render();
 }
 function complete(){
   reward=Math.floor(100*(1+(level-1)*.25));
   cash+=reward;
+  save();
   $("reward").textContent=reward;
   $("modal").style.display="flex";
   washing=false;
@@ -138,7 +160,7 @@ $("station").addEventListener("pointermove",e=>{if(washing)addProgress(2.5)});
 $("boostBtn").onclick=()=>{addProgress(25);};
 $("upgradeBtn").onclick=()=>{
   const cost=100*Math.pow(1.65,level-1);
-  if(cash>=cost){cash-=cost;level++;render();}
+  if(cash>=cost){cash-=cost;level++;save();render();}
 };
 render();
 </script>
