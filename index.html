@@ -38,6 +38,14 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 .stars{font-size:30px;letter-spacing:5px}
 </style>
 <style>
+/* v0.5 sequential tools */
+.toolBtn.locked{opacity:.38;filter:grayscale(1);box-shadow:none;position:relative}
+.toolBtn.locked:after{content:"🔒";position:absolute;right:4px;top:2px;font-size:11px}
+.toolBtn.active{background:#ffc72c}
+.stageStatus{font-size:11px;font-weight:900;margin-top:4px;opacity:.75}
+</style>
+
+<style>
 /* v0.4 - visible dirt cleaning */
 .cleanLayer{position:absolute;left:50%;top:50%;width:min(78%,370px);height:auto;aspect-ratio:500/260;transform:translate(-50%,-50%);pointer-events:none;z-index:9}
 .dirtSpot{position:absolute;border-radius:50%;background:#704a31;box-shadow:inset 2px 2px 3px #4c301f;transition:opacity .18s,transform .18s}
@@ -49,7 +57,7 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 </style>
 
 <style>
-/* Car Wash Empire v0.4 */
+/* Car Wash Empire v0.5 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -77,7 +85,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.4</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.5</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -121,7 +129,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <button class="toolBtn active" data-tool="wash">🚿 Högtryck</button>
 <button class="toolBtn" data-tool="sponge">🧽 Svamp</button>
 <button class="toolBtn" data-tool="shine">✨ Polish</button>
-</div>
+</div><div class="stageStatus" id="stageStatus">Steg 1 av 3 · Högtryck först</div>
 <div class="upgrade">
       <div><div class="lvl">🧽 Wash Speed <span id="level">Lv. 1</span></div><div class="small">Snabbare tvätt = fler kunder</div></div>
       <button class="action" style="flex:0 0 auto;padding:10px 15px;font-size:14px" id="upgradeBtn">⬆️ $<span id="cost">100</span></button>
@@ -178,10 +186,11 @@ function createDirt(){
   });
 }
 function setTool(tool){
+  if(!toolAllowed(tool)){ toast(tool==="sponge"?"🚿 Använd högtrycken först!":"🧽 Använd svampen först!"); return; }
   selectedTool=tool;
   const names={wash:"🚿 HÖGTRYCK",sponge:"🧽 SVAMP",shine:"✨ POLISH"};
   $("toolLabel").textContent=names[tool];
-  document.querySelectorAll(".toolBtn").forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));
+  updateTools();
 }
 function cleanAt(x,y){
   const r=$("cleanLayer").getBoundingClientRect();
@@ -200,6 +209,29 @@ function dirtRemaining(){
 function visibleCleanProgress(){
   const cleaned=dirtSpots.length-dirtRemaining();
   return cleaned/dirtSpots.length*100;
+}
+
+
+let completedStage=1;
+function toolAllowed(tool){
+  if(tool==="wash") return true;
+  if(tool==="sponge") return completedStage>=2;
+  if(tool==="shine") return completedStage>=3;
+  return false;
+}
+function updateTools(){
+  const order=["wash","sponge","shine"];
+  const labels={wash:"🚿 Högtryck",sponge:"🧽 Svamp",shine:"✨ Polish"};
+  document.querySelectorAll(".toolBtn").forEach(b=>{
+    const t=b.dataset.tool, allowed=toolAllowed(t);
+    b.classList.toggle("locked",!allowed);
+    b.classList.toggle("active",t===selectedTool);
+    b.textContent=(allowed?"":"🔒 ")+labels[t];
+  });
+  $("stageStatus").textContent =
+    completedStage===1 ? "Steg 1 av 3 · 🚿 Högtryck först" :
+    completedStage===2 ? "Steg 2 av 3 · 🧽 Nu är svampen upplåst" :
+    "Steg 3 av 3 · ✨ Polish är upplåst";
 }
 
 function render(){
@@ -279,7 +311,7 @@ $("upgradeBtn").onclick=()=>{
   const cost=100*Math.pow(1.65,level-1);
   if(cash>=cost){cash-=cost;level++;save();render();}
 };
-document.querySelectorAll(".toolBtn").forEach(b=>b.addEventListener("click",()=>setTool(b.dataset.tool)));
+document.querySelectorAll(".toolBtn").forEach(b=>b.addEventListener("click",()=>setTool(b.dataset.tool))); updateTools();
 createDirt();
 render();
 </script>
