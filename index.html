@@ -38,14 +38,6 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 .stars{font-size:30px;letter-spacing:5px}
 </style>
 <style>
-/* v0.5 sequential tools */
-.toolBtn.locked{opacity:.38;filter:grayscale(1);box-shadow:none;position:relative}
-.toolBtn.locked:after{content:"🔒";position:absolute;right:4px;top:2px;font-size:11px}
-.toolBtn.active{background:#ffc72c}
-.stageStatus{font-size:11px;font-weight:900;margin-top:4px;opacity:.75}
-</style>
-
-<style>
 /* v0.4 - visible dirt cleaning */
 .cleanLayer{position:absolute;left:50%;top:50%;width:min(78%,370px);height:auto;aspect-ratio:500/260;transform:translate(-50%,-50%);pointer-events:none;z-index:9}
 .dirtSpot{position:absolute;border-radius:50%;background:#704a31;box-shadow:inset 2px 2px 3px #4c301f;transition:opacity .18s,transform .18s}
@@ -57,7 +49,7 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 </style>
 
 <style>
-/* Car Wash Empire v0.5.2 */
+/* Car Wash Empire v0.6 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -85,7 +77,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.5.2</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.6</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -129,7 +121,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <button class="toolBtn active" data-tool="wash">🚿 Högtryck</button>
 <button class="toolBtn" data-tool="sponge">🧽 Svamp</button>
 <button class="toolBtn" data-tool="shine">✨ Polish</button>
-</div><div class="stageStatus" id="stageStatus">Steg 1 av 3 · Högtryck först</div>
+</div>
 <div class="upgrade">
       <div><div class="lvl">🧽 Wash Speed <span id="level">Lv. 1</span></div><div class="small">Snabbare tvätt = fler kunder</div></div>
       <button class="action" style="flex:0 0 auto;padding:10px 15px;font-size:14px" id="upgradeBtn">⬆️ $<span id="cost">100</span></button>
@@ -185,16 +177,41 @@ function createDirt(){
     layer.appendChild(s);
   });
 }
+
 function setTool(tool){
-  if((stage===1 && tool!=="wash")||(stage===2 && tool!=="sponge")||(stage===3 && tool!=="shine")){
-    toast(stage===1?"🚿 HÖGTRYCK FÖRST!":stage===2?"🧽 DU MÅSTE ANVÄNDA SVAMPEN!":"✨ ANVÄND POLISH!");
+  const required = stage===1 ? "wash" : stage===2 ? "sponge" : "shine";
+  if(tool !== required){
+    if(stage===1) toast("🚿 Använd högtrycken först!");
+    else if(stage===2) toast("🧽 Du måste använda svampen nu!");
+    else toast("✨ Använd polish nu!");
     return;
   }
-  selectedTool=tool;
+
+  selectedTool = tool;
   const names={wash:"🚿 HÖGTRYCK",sponge:"🧽 SVAMP",shine:"✨ POLISH"};
   $("toolLabel").textContent=names[tool];
   updateTools();
 }
+
+function updateTools(){
+  const required = stage===1 ? "wash" : stage===2 ? "sponge" : "shine";
+  const labels={wash:"🚿 Högtryck",sponge:"🧽 Svamp",shine:"✨ Polish"};
+
+  document.querySelectorAll(".toolBtn").forEach(b=>{
+    const t=b.dataset.tool;
+    const active=t===required;
+    b.classList.toggle("active",active);
+    b.classList.toggle("locked",!active);
+    b.textContent=(active ? "" : "🔒 ")+labels[t];
+  });
+
+  $("toolLabel").textContent=labels[required].toUpperCase();
+  $("stageStatus").textContent =
+    stage===1 ? "Steg 1 av 3 · 🚿 Högtryck" :
+    stage===2 ? "Steg 2 av 3 · 🧽 Svamp" :
+    "Steg 3 av 3 · ✨ Polish";
+}
+
 function cleanAt(x,y){
   const r=$("cleanLayer").getBoundingClientRect();
   const lx=(x-r.left)/r.width*100, ly=(y-r.top)/r.height*100;
@@ -204,15 +221,14 @@ function cleanAt(x,y){
     const dist=Math.hypot((sx-lx)*r.width/100,(sy-ly)*r.height/100);
     const i=Number(s.dataset.i);
 
-    // Only the correct tool can remove each dirt layer.
-    const allowed =
+    const hit =
       (stage===1 && selectedTool==="wash" && i<=6) ||
       (stage===2 && selectedTool==="sponge" && i>=5) ||
       (stage===3 && selectedTool==="shine" && i>=8);
 
-    if(allowed && dist < (selectedTool==="wash"?42:selectedTool==="sponge"?30:22)){
+    if(hit && dist < (stage===1?42:stage===2?30:22)){
       s.classList.add("cleaning");
-      s.style.opacity=selectedTool==="shine"?"0":".15";
+      s.style.opacity = stage===3 ? "0" : ".15";
     }
   });
 }
@@ -222,29 +238,6 @@ function dirtRemaining(){
 function visibleCleanProgress(){
   const cleaned=dirtSpots.length-dirtRemaining();
   return cleaned/dirtSpots.length*100;
-}
-
-
-let completedStage=1;
-function toolAllowed(tool){
-  if(tool==="wash") return true;
-  if(tool==="sponge") return completedStage>=2;
-  if(tool==="shine") return completedStage>=3;
-  return false;
-}
-function updateTools(){
-  const order=["wash","sponge","shine"];
-  const labels={wash:"🚿 Högtryck",sponge:"🧽 Svamp",shine:"✨ Polish"};
-  document.querySelectorAll(".toolBtn").forEach(b=>{
-    const t=b.dataset.tool, allowed=toolAllowed(t);
-    b.classList.toggle("locked",!allowed);
-    b.classList.toggle("active",t===selectedTool);
-    b.textContent=(allowed?"":"🔒 ")+labels[t];
-  });
-  $("stageStatus").textContent =
-    completedStage===1 ? "Steg 1 av 3 · 🚿 Högtryck först" :
-    completedStage===2 ? "Steg 2 av 3 · 🧽 Nu är svampen upplåst" :
-    "Steg 3 av 3 · ✨ Polish är upplåst";
 }
 
 function render(){
@@ -264,38 +257,31 @@ function render(){
   ];
   $("stage").textContent=labels[stage-1][0]; $("instruction").textContent=labels[stage-1][1];
 }
-function addProgress(n){
-  // Each stage has its own 0–100% progress bar.
-  // Once 100% is reached, that tool stops working until the next tool is unlocked.
-  if(stage===1 && selectedTool!=="wash") return;
-  if(stage===2 && selectedTool!=="sponge") return;
-  if(stage===3 && selectedTool!=="shine") return;
 
-  progress=Math.min(100, progress+n*(1+level*.12));
-  $("progress").style.width=progress+"%";
-  $("car").classList.add("shake");
-  setTimeout(()=>$("car").classList.remove("shake"),220);
+function addProgress(amount){
+  // Only the currently active tool can add progress.
+  const required = stage===1 ? "wash" : stage===2 ? "sponge" : "shine";
+  if(selectedTool !== required) return;
 
-  if(progress>=100){
-    progress=100;
+  progress = Math.min(100, progress + amount * (1 + level*0.08));
+  $("progress").style.width = progress + "%";
+
+  if(progress >= 100){
+    progress = 100;
     render();
 
-    if(stage===1){
-      // HARD STOP: high pressure is finished.
-      completedStage=2;
-      stage=2;
-      selectedTool="sponge";
-      toast("🛑 HÖGTRYCK KLART! 🧽 TA SVAMPEN!");
+    // Hard stop at 100%. The current tool cannot add anything more.
+    if(stage === 1){
+      stage = 2;
+      selectedTool = "sponge";
+      toast("🧽 HÖGTRYCK KLART! TA SVAMPEN!");
       updateTools();
-    } else if(stage===2){
-      // HARD STOP: sponge is finished.
-      completedStage=3;
-      stage=3;
-      selectedTool="shine";
-      toast("🛑 SVAMP KLAR! ✨ TA POLISH!");
+    } else if(stage === 2){
+      stage = 3;
+      selectedTool = "shine";
+      toast("✨ SVAMP KLAR! TA POLISH!");
       updateTools();
-    } else if(stage===3){
-      // Final stage complete.
+    } else {
       complete();
     }
     return;
@@ -350,7 +336,7 @@ $("upgradeBtn").onclick=()=>{
   const cost=100*Math.pow(1.65,level-1);
   if(cash>=cost){cash-=cost;level++;save();render();}
 };
-document.querySelectorAll(".toolBtn").forEach(b=>b.addEventListener("click",()=>setTool(b.dataset.tool))); updateTools();
+document.querySelectorAll(".toolBtn").forEach(b=>b.addEventListener("click",()=>setTool(b.dataset.tool)));
 createDirt();
 render();
 </script>
