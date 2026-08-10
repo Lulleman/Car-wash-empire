@@ -54,7 +54,7 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 </style>
 
 <style>
-/* Car Wash Empire v0.8 */
+/* Car Wash Empire v0.8.1 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -82,7 +82,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.8</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.8.1</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -145,7 +145,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 </div>
 
 <script>
-let cash=Number(localStorage.cweCash||100), level=Number(localStorage.cweLevel||1), progress=0, stage=1, reward=100, washing=false;
+let cash=Number(localStorage.cweCash||100), level=Number(localStorage.cweLevel||1), progress=0, stage=1, reward=100, washing=false, selectedTool="wash";
 const $=id=>document.getElementById(id);
 function save(){localStorage.cweCash=Math.floor(cash);localStorage.cweLevel=level;}
 
@@ -183,30 +183,41 @@ function createDirt(){
   });
 }
 function setTool(tool){
-  const required=stage===1?"wash":stage===2?"sponge":"shine";
-  if(tool!==required){
-    toast(stage===1?"🚿 HÖGTRYCK FÖRST!":stage===2?"🧽 DU MÅSTE ANVÄNDA SVAMPEN!":"✨ ANVÄND POLISH!");
+  if(stage===1 && tool==="sponge" && progress>=100){
+    stage=2; progress=0; selectedTool="sponge";
+  } else if(stage===2 && tool==="shine" && progress>=100){
+    stage=3; progress=0; selectedTool="shine";
+  } else if((stage===1 && tool==="wash") || (stage===2 && tool==="sponge") || (stage===3 && tool==="shine")){
+    selectedTool=tool;
+  } else {
+    toast(stage===1 ? "🚿 Kör högtrycken till 100% först!" :
+          stage===2 ? "🧽 Kör svampen till 100% först!" :
+          "✨ Polish är sista steget!");
     return;
   }
-  selectedTool=tool;
   updateTools();
-}
-function updateTools(){
-  const required=stage===1?"wash":stage===2?"sponge":"shine";
-  const labels={wash:"🚿 Högtryck",sponge:"🧽 Svamp",shine:"✨ Polish"};
-  document.querySelectorAll(".toolBtn").forEach(b=>{
-    const active=b.dataset.tool===required;
-    b.classList.toggle("active",active);
-    b.classList.toggle("locked",!active);
-    b.textContent=(active?"":"🔒 ")+labels[b.dataset.tool];
-  });
-  $("stageStatus").textContent=
-    stage===1?"Steg 1 av 3 · 🚿 Högtryck":
-    stage===2?"Steg 2 av 3 · 🧽 Svamp":
-    "Steg 3 av 3 · ✨ Polish";
-  $("toolLabel").textContent=labels[required].toUpperCase();
+  render();
 }
 
+function updateTools(){
+  const labels={wash:"🚿 Högtryck",sponge:"🧽 Svamp",shine:"✨ Polish"};
+  const canWash=stage===1 && selectedTool==="wash" && progress<100;
+  const canSponge=(stage===1 && progress>=100) || stage===2;
+  const canShine=(stage===2 && progress>=100) || stage===3;
+
+  document.querySelectorAll(".toolBtn").forEach(b=>{
+    const t=b.dataset.tool;
+    const enabled=t==="wash"?canWash:t==="sponge"?canSponge:canShine;
+    b.classList.toggle("active",t===selectedTool && enabled);
+    b.classList.toggle("locked",!enabled);
+    b.textContent=(enabled?"":"🔒 ")+labels[t];
+  });
+
+  $("stageStatus").textContent=
+    stage===1 ? (progress>=100 ? "Högtryck klart · 🧽 Svamp upplåst" : "Steg 1 av 3 · 🚿 Högtryck") :
+    stage===2 ? (progress>=100 ? "Svamp klar · ✨ Polish upplåst" : "Steg 2 av 3 · 🧽 Svamp") :
+    "Steg 3 av 3 · ✨ Polish";
+}
 function cleanAt(x,y){
   const r=$("cleanLayer").getBoundingClientRect();
   const lx=(x-r.left)/r.width*100, ly=(y-r.top)/r.height*100;
@@ -245,38 +256,25 @@ function render(){
 }
 function addProgress(amount){
   const required = stage===1 ? "wash" : stage===2 ? "sponge" : "shine";
-  if(selectedTool !== required) return;
+  if(selectedTool !== required || progress>=100) return;
 
-  progress = Math.min(100, progress + amount*(1+level*.08));
+  progress=Math.min(100,progress+amount*(1+level*.08));
   render();
 
-  if(progress >= 100){
-    progress = 100;
-    render();
+  if(progress>=100){
+    progress=100;
+    washing=false;
 
     if(stage===1){
-      stage=2;
-      progress=0;
-      selectedTool="sponge";
-      toast("🛑 HÖGTRYCK KLART! TA SVAMPEN!");
-      updateTools();
-      render();
-      return;
-    }
-
-    if(stage===2){
-      stage=3;
-      progress=0;
-      selectedTool="shine";
-      toast("🛑 SVAMP KLAR! TA POLISH!");
-      updateTools();
-      render();
-      return;
-    }
-
-    if(stage===3){
+      toast("🛑 HÖGTRYCK KLART! 🧽 VÄLJ SVAMP!");
+    } else if(stage===2){
+      toast("🛑 SVAMP KLAR! ✨ VÄLJ POLISH!");
+    } else {
       complete();
+      return;
     }
+    updateTools();
+    render();
   }
 }
 function complete(){
@@ -288,7 +286,7 @@ function complete(){
   washing=false;
 }
 function nextCar(){
-  $("modal").style.display="none"; stage=1;progress=0;render();
+  $("modal").style.display="none"; stage=1;progress=0;selectedTool="wash";createDirt();updateTools();render();
 }
 $("continueBtn").onclick=nextCar;
 $("washBtn").onpointerdown=e=>{
@@ -314,7 +312,7 @@ $("station").addEventListener("pointermove",e=>{
   const p=touchPoint(e);
   cleanAt(p.x,p.y);
   fx(p.x,p.y,selectedTool==="sponge");
-  if(Date.now()-lastTouch>55){
+  if(Date.now()-lastTouch>55 && progress<100){
     lastTouch=Date.now(); setCombo();
     const gain=selectedTool==="wash"?3.2:selectedTool==="sponge"?2.5:1.8;
     addProgress(gain);
@@ -329,6 +327,7 @@ $("upgradeBtn").onclick=()=>{
 };
 document.querySelectorAll(".toolBtn").forEach(b=>b.addEventListener("click",()=>setTool(b.dataset.tool)));
 createDirt();
+updateTools();
 render();
 </script>
 </body>
