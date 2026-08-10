@@ -38,7 +38,18 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 .stars{font-size:30px;letter-spacing:5px}
 </style>
 <style>
-/* Car Wash Empire v0.3.1 */
+/* v0.4 - visible dirt cleaning */
+.cleanLayer{position:absolute;left:50%;top:50%;width:min(78%,370px);height:auto;aspect-ratio:500/260;transform:translate(-50%,-50%);pointer-events:none;z-index:9}
+.dirtSpot{position:absolute;border-radius:50%;background:#704a31;box-shadow:inset 2px 2px 3px #4c301f;transition:opacity .18s,transform .18s}
+.dirtSpot.cleaning{opacity:.25;transform:scale(.65)}
+.toolLabel{position:absolute;left:50%;bottom:13%;transform:translateX(-50%);background:#fff;border:3px solid #176fa7;border-radius:14px;padding:7px 12px;font-weight:1000;z-index:12;box-shadow:0 3px 0 #176fa7}
+.toolRow{display:flex;gap:7px;margin-top:8px}
+.toolBtn{flex:1;background:#fff;border:3px solid #176fa7;border-radius:14px;padding:9px 4px;font-weight:1000;box-shadow:0 4px 0 #176fa7}
+.toolBtn.active{background:#ffc72c;border-color:#d29b00;box-shadow:0 4px 0 #d29b00}
+</style>
+
+<style>
+/* Car Wash Empire v0.4 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -66,11 +77,11 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.3.1</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.4</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
-  <div class="station" id="station"><div class="stageHint" id="stageHint">DRA ÖVER BILEN</div><div class="combo" id="combo">🔥 COMBO x1</div><div class="cleanFX" id="cleanFX"></div>
+  <div class="station" id="station"><div class="stageHint" id="stageHint">DRA ÖVER BILEN</div><div class="combo" id="combo">🔥 COMBO x1</div><div class="cleanFX" id="cleanFX"></div><div class="cleanLayer" id="cleanLayer"></div><div class="toolLabel" id="toolLabel">🚿 HÖGTRYCK</div>
     <div class="cloud c1"></div><div class="cloud c2"></div>
     <div class="sign">🚗 CAR WASH</div>
     <div class="stage" id="stage">1 / 4 · WASH</div>
@@ -106,7 +117,12 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
       <button class="action" id="washBtn">🚿 WASH</button>
       <button class="action secondary" id="boostBtn">⚡ BOOST</button>
     </div>
-    <div class="upgrade">
+    <div class="toolRow">
+<button class="toolBtn active" data-tool="wash">🚿 Högtryck</button>
+<button class="toolBtn" data-tool="sponge">🧽 Svamp</button>
+<button class="toolBtn" data-tool="shine">✨ Polish</button>
+</div>
+<div class="upgrade">
       <div><div class="lvl">🧽 Wash Speed <span id="level">Lv. 1</span></div><div class="small">Snabbare tvätt = fler kunder</div></div>
       <button class="action" style="flex:0 0 auto;padding:10px 15px;font-size:14px" id="upgradeBtn">⬆️ $<span id="cost">100</span></button>
     </div>
@@ -144,6 +160,46 @@ function setCombo(){
   $("combo").classList.add("show");
   clearTimeout(window.comboTimer);
   window.comboTimer=setTimeout(()=>{combo=0;$("combo").classList.remove("show")},900);
+}
+
+
+let selectedTool="wash";
+const dirtSpots=[
+  [16,38,12],[27,58,10],[39,43,14],[51,61,11],[63,42,13],[76,59,10],
+  [22,73,9],[45,72,12],[68,74,10],[83,43,8]
+];
+function createDirt(){
+  const layer=$("cleanLayer"); layer.innerHTML="";
+  dirtSpots.forEach((d,i)=>{
+    const s=document.createElement("div");s.className="dirtSpot";s.dataset.i=i;
+    s.style.left=d[0]+"%";s.style.top=d[1]+"%";s.style.width=(d[2]*1.7)+"px";s.style.height=(d[2]*1.7)+"px";
+    s.style.transform="translate(-50%,-50%)";
+    layer.appendChild(s);
+  });
+}
+function setTool(tool){
+  selectedTool=tool;
+  const names={wash:"🚿 HÖGTRYCK",sponge:"🧽 SVAMP",shine:"✨ POLISH"};
+  $("toolLabel").textContent=names[tool];
+  document.querySelectorAll(".toolBtn").forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));
+}
+function cleanAt(x,y){
+  const r=$("cleanLayer").getBoundingClientRect();
+  const lx=(x-r.left)/r.width*100, ly=(y-r.top)/r.height*100;
+  document.querySelectorAll(".dirtSpot:not(.cleaning)").forEach(s=>{
+    const sx=parseFloat(s.style.left), sy=parseFloat(s.style.top);
+    const dist=Math.hypot((sx-lx)*r.width/100,(sy-ly)*r.height/100);
+    if(dist < (selectedTool==="wash"?38:selectedTool==="sponge"?28:20)){
+      s.classList.add("cleaning");
+    }
+  });
+}
+function dirtRemaining(){
+  return document.querySelectorAll(".dirtSpot:not(.cleaning)").length;
+}
+function visibleCleanProgress(){
+  const cleaned=dirtSpots.length-dirtRemaining();
+  return cleaned/dirtSpots.length*100;
 }
 
 function render(){
@@ -202,13 +258,19 @@ $("station").addEventListener("pointerdown",e=>{
   if(e.target.closest("button")) return;
   washing=true;
   try{$("station").setPointerCapture(e.pointerId)}catch(_){}
-  const p=touchPoint(e); fx(p.x,p.y,stage===2); addProgress(6); lastTouch=Date.now();
+  const p=touchPoint(e); cleanAt(p.x,p.y); fx(p.x,p.y,selectedTool==="sponge");
 });
 $("station").addEventListener("pointermove",e=>{
   if(!washing) return;
   e.preventDefault();
-  const p=touchPoint(e); fx(p.x,p.y,stage===2);
-  if(Date.now()-lastTouch>55){ addProgress(stage===4?2.4:3.2); lastTouch=Date.now(); setCombo(); }
+  const p=touchPoint(e);
+  cleanAt(p.x,p.y);
+  fx(p.x,p.y,selectedTool==="sponge");
+  if(Date.now()-lastTouch>55){
+    lastTouch=Date.now(); setCombo();
+    const gain=selectedTool==="wash"?3.2:selectedTool==="sponge"?2.5:1.8;
+    addProgress(gain);
+  }
 });
 $("station").addEventListener("pointerup",e=>{washing=false;try{$("station").releasePointerCapture(e.pointerId)}catch(_){}});
 $("station").addEventListener("pointercancel",()=>washing=false);
@@ -217,6 +279,8 @@ $("upgradeBtn").onclick=()=>{
   const cost=100*Math.pow(1.65,level-1);
   if(cash>=cost){cash-=cost;level++;save();render();}
 };
+document.querySelectorAll(".toolBtn").forEach(b=>b.addEventListener("click",()=>setTool(b.dataset.tool)));
+createDirt();
 render();
 </script>
 </body>
