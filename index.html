@@ -49,7 +49,7 @@ button{border:0;font:inherit;font-weight:1000;cursor:pointer}
 </style>
 
 <style>
-/* Car Wash Empire v0.6 */
+/* Car Wash Empire v0.7 */
 .cleanFX{position:absolute;inset:0;pointer-events:none;z-index:8}
 .soapBubble{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bdefff 65%,#8dddf5);border:2px solid #fff;box-shadow:0 2px 5px #14749a55;animation:bubble .7s ease-out forwards}
 @keyframes bubble{0%{opacity:.95;transform:scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.35)}}
@@ -77,7 +77,7 @@ body{background:linear-gradient(#a9e0ff,#eefaff)}
 <body>
 <div id="game">
   <div class="top">
-    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.6</small></div>
+    <div class="logo">CAR WASH<br><span style="color:#ffc62e">EMPIRE</span><small style="display:block;font-size:9px;color:#fff;opacity:.75;margin-top:4px">PROTOTYPE v0.7</small></div>
     <div class="cash">💵 $<span id="cash">100</span></div>
   </div>
 
@@ -179,39 +179,31 @@ function createDirt(){
 }
 
 function setTool(tool){
-  const required = stage===1 ? "wash" : stage===2 ? "sponge" : "shine";
-  if(tool !== required){
-    if(stage===1) toast("🚿 Använd högtrycken först!");
-    else if(stage===2) toast("🧽 Du måste använda svampen nu!");
-    else toast("✨ Använd polish nu!");
+  const required=stage===1?"wash":stage===2?"sponge":"shine";
+  if(tool!==required){
+    toast(stage===1?"🚿 HÖGTRYCK FÖRST!":stage===2?"🧽 DU MÅSTE ANVÄNDA SVAMPEN!":"✨ ANVÄND POLISH!");
     return;
   }
-
-  selectedTool = tool;
+  selectedTool=tool;
   const names={wash:"🚿 HÖGTRYCK",sponge:"🧽 SVAMP",shine:"✨ POLISH"};
   $("toolLabel").textContent=names[tool];
   updateTools();
 }
-
 function updateTools(){
-  const required = stage===1 ? "wash" : stage===2 ? "sponge" : "shine";
+  const required=stage===1?"wash":stage===2?"sponge":"shine";
   const labels={wash:"🚿 Högtryck",sponge:"🧽 Svamp",shine:"✨ Polish"};
-
   document.querySelectorAll(".toolBtn").forEach(b=>{
-    const t=b.dataset.tool;
-    const active=t===required;
+    const active=b.dataset.tool===required;
     b.classList.toggle("active",active);
     b.classList.toggle("locked",!active);
-    b.textContent=(active ? "" : "🔒 ")+labels[t];
+    b.textContent=(active?"":"🔒 ")+labels[b.dataset.tool];
   });
-
   $("toolLabel").textContent=labels[required].toUpperCase();
-  $("stageStatus").textContent =
-    stage===1 ? "Steg 1 av 3 · 🚿 Högtryck" :
-    stage===2 ? "Steg 2 av 3 · 🧽 Svamp" :
+  $("stageStatus").textContent=
+    stage===1?"Steg 1 av 3 · 🚿 Högtryck":
+    stage===2?"Steg 2 av 3 · 🧽 Svamp":
     "Steg 3 av 3 · ✨ Polish";
 }
-
 function cleanAt(x,y){
   const r=$("cleanLayer").getBoundingClientRect();
   const lx=(x-r.left)/r.width*100, ly=(y-r.top)/r.height*100;
@@ -259,9 +251,8 @@ function render(){
 }
 
 function addProgress(amount){
-  // Only the currently active tool can add progress.
   const required = stage===1 ? "wash" : stage===2 ? "sponge" : "shine";
-  if(selectedTool !== required) return;
+  if(selectedTool !== required || stage>3) return;
 
   progress = Math.min(100, progress + amount * (1 + level*0.08));
   $("progress").style.width = progress + "%";
@@ -270,75 +261,52 @@ function addProgress(amount){
     progress = 100;
     render();
 
-    // Hard stop at 100%. The current tool cannot add anything more.
     if(stage === 1){
+      // IMPORTANT: high pressure can NEVER complete the car.
+      // It only completes stage 1 and stops.
       stage = 2;
+      progress = 0;
       selectedTool = "sponge";
-      toast("🧽 HÖGTRYCK KLART! TA SVAMPEN!");
+      toast("🧽 HÖGTRYCK KLART — TA SVAMPEN!");
       updateTools();
-    } else if(stage === 2){
+      render();
+      return;
+    }
+
+    if(stage === 2){
+      progress = 0;
       stage = 3;
       selectedTool = "shine";
-      toast("✨ SVAMP KLAR! TA POLISH!");
+      toast("✨ SVAMP KLAR — TA POLISH!");
       updateTools();
-    } else {
-      complete();
+      render();
+      return;
     }
-    return;
+
+    // Only polish can complete the car.
+    if(stage === 3){
+      complete();
+      return;
+    }
   }
   render();
 }
 function complete(){
-  reward=Math.floor(100*(1+(level-1)*.25));
+  if(stage!==3 || selectedTool!=="shine") return;
+  reward=Math.floor(100*(1+(level-1)*.22));
   cash+=reward;
   save();
   $("reward").textContent=reward;
   $("modal").style.display="flex";
-  washing=false;
+  sparks();
 }
-function nextCar(){
-  $("modal").style.display="none"; stage=1;progress=0;render();
+function next(){
+  $("modal").style.display="none";
+  stage=1;
+  progress=0;
+  selectedTool="wash";
+  createDirt();
+  updateTools();
+  render();
 }
-$("continueBtn").onclick=nextCar;
-$("washBtn").onpointerdown=e=>{
-  washing=true;
-  const r=$("station").getBoundingClientRect();
-  fx(r.width/2,r.height*.52,stage===2);
-  addProgress(7);
-};
-window.onpointerup=()=>washing=false;
-function touchPoint(e){
-  const r=$("station").getBoundingClientRect();
-  return {x:e.clientX-r.left,y:e.clientY-r.top};
-}
-$("station").addEventListener("pointerdown",e=>{
-  if(e.target.closest("button")) return;
-  washing=true;
-  try{$("station").setPointerCapture(e.pointerId)}catch(_){}
-  const p=touchPoint(e); cleanAt(p.x,p.y); fx(p.x,p.y,selectedTool==="sponge");
-});
-$("station").addEventListener("pointermove",e=>{
-  if(!washing) return;
-  e.preventDefault();
-  const p=touchPoint(e);
-  cleanAt(p.x,p.y);
-  fx(p.x,p.y,selectedTool==="sponge");
-  if(Date.now()-lastTouch>55){
-    lastTouch=Date.now(); setCombo();
-    const gain=selectedTool==="wash"?3.2:selectedTool==="sponge"?2.5:1.8;
-    addProgress(gain);
-  }
-});
-$("station").addEventListener("pointerup",e=>{washing=false;try{$("station").releasePointerCapture(e.pointerId)}catch(_){}});
-$("station").addEventListener("pointercancel",()=>washing=false);
-$("boostBtn").onclick=()=>{addProgress(25);};
-$("upgradeBtn").onclick=()=>{
-  const cost=100*Math.pow(1.65,level-1);
-  if(cash>=cost){cash-=cost;level++;save();render();}
-};
-document.querySelectorAll(".toolBtn").forEach(b=>b.addEventListener("click",()=>setTool(b.dataset.tool)));
-createDirt();
-render();
-</script>
-</body>
-</html>
+>
